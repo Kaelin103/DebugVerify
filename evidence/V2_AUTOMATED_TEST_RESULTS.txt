@@ -1,0 +1,12 @@
+test_case_fields (test_app.CaseTests.test_case_fields) ... ok
+test_three_cases (test_app.CaseTests.test_three_cases) ... ok
+test_unknown_case (test_app.CaseTests.test_unknown_case) ... ok
+test_input_validation (test_v2.V2Tests.test_input_validation) ... ok
+test_missing_provider_config (test_v2.V2Tests.test_missing_provider_config) ... ok
+test_static_check_no_execution (test_v2.V2Tests.test_static_check_no_execution) ... ok
+test_syntax_error (test_v2.V2Tests.test_syntax_error) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.004s
+
+OK

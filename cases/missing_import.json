@@ -1,0 +1,15 @@
+{
+  "id": "missing_import",
+  "title": "Case 3 · Incomplete code transfer",
+  "description": "A missing import may come from copying, not from the original suggestion.",
+  "language": "Python",
+  "code": "class Handler(BaseHTTPRequestHandler):\n    pass",
+  "expected": "The class definition loads without NameError.",
+  "observed": "NameError: name 'BaseHTTPRequestHandler' is not defined",
+  "diagnosis": "The local file refers to BaseHTTPRequestHandler without importing it. The error alone does not establish why the import is missing.",
+  "uncertainty": "Possible causes include an incomplete original answer, partial copying, or later editing. Compare the source and local file before attributing blame.",
+  "suggestion": "Check whether the original code includes 'from http.server import BaseHTTPRequestHandler'. Restore the import if it is absent locally.",
+  "evidence": [{"kind": "Local code observation", "text": "The displayed local snippet contains no import for BaseHTTPRequestHandler."}, {"kind": "Verification prompt (not automatically checked)", "text": "Open the original response and the saved file side by side. Compare their first and last lines and the import section."}],
+  "verification": "Confirm the origin of the missing line before concluding that the AI generated incomplete code. Then rerun the local program.",
+  "teaching_point": "A correct repair does not necessarily identify the true source of the error."
+}

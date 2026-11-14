@@ -1,0 +1,40 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+*.log
+decisions.jsonl
+
+# Local decision logs
+decisions.jsonl
+
+# Local backups
+backup_*/
+*_backup.*
+*.bak
+.gitignore.backup
+
+# Additional secrets
+*.key
+*credentials*
+*secret*
+
+# Editor files
+.vscode/
+.idea/
+
+
+# Additional local backups
+index_backup_*
+
+# Unrelated course documents
+docs/3086181-Basic Image Classification Using PyTorch.docx
+docs/compare.docx
+
+# Earlier storyboard iterations
+docs/storyboards/v1/
+docs/storyboards/v2/
+
+~$*.docx

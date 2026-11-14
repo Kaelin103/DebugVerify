@@ -1,0 +1,15 @@
+{
+  "id": "misleading_suggestion",
+  "title": "Case 2 · Misleading AI suggestion",
+  "description": "A plausible change is contradicted by recorded tests.",
+  "language": "Python",
+  "code": "def count_positive(values):\n    count = 0\n    for value in values:\n        if value > 0:\n            count += 1\n    return count\n\nprint(count_positive([0, 2, -1]))",
+  "expected": "1",
+  "observed": "1",
+  "diagnosis": "Simulated misleading AI advice: change 'value > 0' to 'value >= 0' to avoid missing zero.",
+  "uncertainty": "This advice assumes zero should count as positive. That assumption conflicts with the usual definition and the provided expected result.",
+  "suggestion": "Change 'if value > 0:' to 'if value >= 0:' (deliberately incorrect advice).",
+  "evidence": [{"kind": "Specification check", "text": "Positive means greater than zero; zero is not positive."}, {"kind": "Recorded test (not executed live)", "text": "Input [0, 2, -1] → original output 1; suggested output 2; expected output 1. Suggested fix fails."}],
+  "verification": "Reject the suggestion unless the task explicitly defines zero as positive. Check [0] (expected 0) and [-1, 1] (expected 1).",
+  "teaching_point": "A confident-sounding diagnosis can be wrong; compare it with requirements and test evidence."
+}

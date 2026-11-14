@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DebugVerify · IIS A2</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e6edf6;background:#0b1220}*{box-sizing:border-box}body{margin:0}.shell{max-width:1140px;margin:auto;padding:30px 22px}header{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}h1{font-size:30px;letter-spacing:-1px;margin:0}h2{font-size:18px;margin:0 0 14px}p{line-height:1.55;color:#b8c7dc}.tag{display:inline-block;padding:7px 11px;border-radius:99px;background:#2a3045;color:#e3d8ff;font-size:12px;font-weight:700}.lead{max-width:790px;margin:14px 0 26px}.layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{background:#151f31;border:1px solid #34425a;border-radius:16px;padding:22px;min-width:0}.full{grid-column:1/-1}label{display:block;color:#a8b8cd;font-size:13px;margin:12px 0 7px}select,textarea,input{width:100%;border:1px solid #455775;background:#0d1728;color:#eef5ff;border-radius:9px;padding:11px;font:inherit}textarea{resize:vertical;min-height:100px}pre{overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1323;border:1px solid #30405a;padding:14px;border-radius:9px;font-size:13px;line-height:1.6;color:#c5f3db}button{border:0;border-radius:9px;padding:11px 17px;font-weight:700;cursor:pointer;background:#9c83ff;color:#0c0d1a}button.secondary{background:#29364b;color:#e4edf9;border:1px solid #53647b}button:disabled{opacity:.5;cursor:not-allowed}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.fact{background:#101c2c;padding:12px;border-left:3px solid #7da6f7;border-radius:5px;margin:12px 0;color:#d4e0f3;line-height:1.5}.warn{border-left-color:#f7b56a}.good{border-left-color:#67d5b2}.muted{font-size:13px;color:#91a6c0}.status{min-height:22px;margin-top:12px;font-size:14px;color:#a7f1cc}footer{margin-top:22px;color:#93a7bf;font-size:12px}strong{color:#f4f6ff}@media(max-width:760px){.layout{grid-template-columns:1fr}.full{grid-column:auto}}</style></head>
+<body><main class="shell"><header><div><h1>DebugVerify <span style="color:#a38bff">/</span></h1><div class="muted">Understand the claim. Inspect the evidence. Decide yourself.</div></div><span class="tag">RECORDED CASES + OPTIONAL LIVE AI</span></header>
+<p class="lead">A research prototype for novice programmers learning to verify AI-generated debugging suggestions. Select a scenario, inspect the evidence, and make your own decision. Recorded cases are demonstrations. In Live AI mode, model responses are generated dynamically but remain unverified; user code is never executed.</p>
+<div class="layout"><section class="panel"><h2>01 · Problem context</h2><label for="case">Choose a scenario</label><select id="case"></select><label for="code">Python code (editable in Live AI mode)</label><textarea id="code" rows="10" readonly></textarea><div class="actions"><button id="live" class="secondary">Switch to Live AI / Custom code</button><button id="analyse" disabled>Analyse my code</button></div><div class="muted" id="modeHelp">Recorded example: code is read-only.</div><label>Expected behaviour</label><textarea id="expected" rows="2" readonly></textarea><label>Observed behaviour</label><textarea id="observed" rows="2" readonly></textarea></section>
+<section class="panel"><h2>02 · Diagnosis</h2><div class="muted" id="sourceLabel">Recorded example; not generated in real time.</div><label>Proposed cause</label><div class="fact" id="diagnosis"></div><label>Suggested change</label><div class="fact" id="suggestion"></div><label>What remains uncertain?</label><div class="fact warn" id="uncertainty"></div><label>Learning point</label><div class="fact" id="teaching"></div></section>
+<section class="panel full"><h2>03 · Verification evidence</h2><div class="muted">Evidence types are labelled. “Recorded test” means an example prepared in advance; no user code is executed by this prototype.</div><div id="evidence"></div><div class="fact good" id="staticResult" hidden></div><label>Suggested verification steps</label><div class="fact good" id="verification"></div></section>
+<section class="panel full"><h2>04 · Your decision</h2><p>Decide only after examining the proposed cause and evidence. This prototype does not change files or execute code.</p><label for="note">Why? (optional; maximum 500 characters)</label><input id="note" maxlength="500" placeholder="e.g. The suggested fix fails the recorded test..."><div class="actions"><button id="accept">Accept suggestion</button><button class="secondary" id="reject">Reject suggestion</button><button class="secondary" id="retry">Request re-analysis</button></div><div class="status" id="status" role="status" aria-live="polite"></div><div class="muted" id="retryHelp">In recorded mode, re-analysis only records the request. In Live AI mode, it requests a new response using your feedback.</div></section></div><footer>IIS Assignment 2 · DebugVerify v2 · Recorded cases and optional live AI · Human-in-the-loop demonstration</footer></main>
+<script>
+const $=id=>document.getElementById(id);let current=null,live=false,lastDiagnosis='',analysisReady=false,analysing=false,requestVersion=0,decisionPending=false;
+async function json(url,options){const response=await fetch(url,options);const data=await response.json();if(!response.ok)throw new Error(data.error||'Request failed');return data}
+function put(id,value){$(id).textContent=value??''}
+
+function putFormatted(id,value){
+ const target=$(id);
+ const source=String(value??'');
+ target.replaceChildren();
+
+ const lines=source.split(/(\x60{3}[\s\S]*?\x60{3})/g);
+
+ function appendInline(parent,text){
+  const parts=text.split(/(\x60[^\x60\n]+\x60)/g);
+  for(const part of parts){
+   if(/^\x60[^\x60\n]+\x60$/.test(part)){
+    const code=document.createElement('code');
+    code.textContent=part.slice(1,-1);
+    parent.append(code);
+   }else{
+    parent.append(document.createTextNode(part));
+   }
+  }
+ }
+
+ for(const part of lines){
+  if(part.startsWith('```')&&part.endsWith('```')){
+   const code=document.createElement('code');
+   const pre=document.createElement('pre');
+   code.textContent=part.slice(3,-3).replace(/^[a-zA-Z]+\n/,'').trim();
+   pre.append(code);
+   target.append(pre);
+  }else{
+   appendInline(target,part);
+  }
+ }
+}
+
+async function loadCase(id){const version=++requestVersion;live=false;lastDiagnosis='';analysisReady=false;setMode();const c=await json('/api/cases/'+encodeURIComponent(id));if(version!==requestVersion||live)return;current=c;put('code',c.code);for(const field of ['expected','observed','diagnosis','suggestion','uncertainty','verification'])put(field,c[field]);put('teaching',c.teaching_point);$('evidence').replaceChildren();for(const item of c.evidence){const div=document.createElement('div');div.className='fact';const heading=document.createElement('strong');heading.textContent=item.kind+' · ';div.append(heading,document.createTextNode(item.text));$('evidence').append(div)}put('note','');put('status','');$('staticResult').hidden=true;updateDecisionButtons()}
+async function decide(choice){
+ if(!current||analysing||decisionPending||(live&&!analysisReady))return;
+ decisionPending=true;updateDecisionButtons();
+ try{
+  const r=await json('/api/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({case_id:current.id,choice,note:$('note').value})});
+  put('status',`Recorded: ${r.record.choice} for ${r.record.case_id}. This does not modify code.`);
+  if(choice==='retry'&&live){
+   decisionPending=false;
+   await analyse(true);
+  }
+ }catch(e){put('status','Error: '+e.message)}
+ finally{decisionPending=false;updateDecisionButtons()}
+}
+
+function updateDecisionButtons(){for(const id of ['accept','reject','retry'])$(id).disabled=analysing||decisionPending||(live&&!analysisReady)||!current;}
+function setMode(){
+ $('code').readOnly=!live||analysing;$('expected').readOnly=!live||analysing;$('observed').readOnly=!live||analysing;
+ $('case').disabled=live||analysing; if(live){$('case').dataset.recordedChoice=$('case').dataset.recordedChoice||$('case').value; if(!$('case').querySelector('option[value=custom]')){const option=document.createElement('option');option.value='custom';option.textContent='Custom code · Live AI';$('case').append(option)}$('case').value='custom';}else{const option=$('case').querySelector('option[value=custom]');if(option)option.remove();if($('case').dataset.recordedChoice)$('case').value=$('case').dataset.recordedChoice;}
+ $('analyse').disabled=!live||analysing;$('live').disabled=analysing||decisionPending;$('live').textContent=live?'Return to recorded cases':'Switch to Live AI / Custom code';
+ put('modeHelp',live?'Live AI: edit code and expectations. Model claims are not verified.':'Recorded example: code is read-only.');
+ put('sourceLabel',live?'Live model output (unverified; no code execution).':'Recorded example; not generated in real time.');updateDecisionButtons();
+}
+function showLive(result){
+ for(const key of ['diagnosis','suggestion','uncertainty','verification'])putFormatted(key,result.diagnosis[key]);
+ putFormatted('teaching',result.diagnosis.teaching_point);lastDiagnosis=JSON.stringify(result.diagnosis);analysisReady=true;updateDecisionButtons();
+ $('evidence').replaceChildren();const div=document.createElement('div');div.className='fact warn';
+ div.textContent='AI-generated hypothesis — not independent evidence or an executed test.';$('evidence').append(div);
+ $('staticResult').hidden=false;
+ put('staticResult',`Independent static syntax check: ${result.static_check.status}. ${result.static_check.message} (No code execution)`);
+}
+async function analyse(retry=false){
+ if(!live||analysing)return;const version=requestVersion;analysing=true;setMode();updateDecisionButtons();const button=$('analyse');button.disabled=true;put('status',retry?'Requesting re-analysis...':'Requesting live AI analysis...');
+ try{const result=await json('/api/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:$('code').value,expected:$('expected').value,observed:$('observed').value,feedback:retry?$('note').value:'',previous:retry?lastDiagnosis:null})});
+ if(version!==requestVersion||!live)return;showLive(result);put('status','Live AI response received. Review critically before accepting.');
+ }catch(e){if(version===requestVersion)put('status','Error: '+e.message)}finally{analysing=false;setMode();button.disabled=!live;updateDecisionButtons()}
+}
+function toggleLive(){if(analysing||decisionPending)return;++requestVersion;live=!live;current=live?{id:'custom'}:null;lastDiagnosis='';analysisReady=false;setMode();put('status','');
+ if(live){put('diagnosis','Awaiting analysis');put('suggestion','Awaiting analysis');put('uncertainty','Awaiting analysis');put('teaching','Awaiting analysis');put('verification','Awaiting analysis');$('evidence').replaceChildren();$('staticResult').hidden=true;put('note','');}
+ else loadCase($('case').value).catch(e=>put('status',e.message));
+}
+
+(async()=>{try{const data=await json('/api/cases');for(const c of data.cases){const o=document.createElement('option');o.value=c.id;o.textContent=c.title;$('case').append(o)}$('live').addEventListener('click',toggleLive);$('analyse').addEventListener('click',()=>analyse(false));for(const id of ['code','expected','observed'])$(id).addEventListener('input',()=>{if(live){analysisReady=false;lastDiagnosis='';updateDecisionButtons();put('status','Inputs changed. Run analysis again before deciding.');}});$('case').addEventListener('change',()=>{if(!live){$('case').dataset.recordedChoice=$('case').value;loadCase($('case').value).catch(e=>put('status',e.message))}});for(const id of ['accept','reject','retry'])$(id).addEventListener('click',()=>decide(id));await loadCase(data.cases[0].id)}catch(e){put('status','Cannot load application: '+e.message)}})();
+</script></body></html>
