@@ -1,54 +1,125 @@
 # DebugVerify v2 — IIS Assignment 2
 
-**Status:** Local interactive research prototype; three pre-authored recorded cases, optional live AI diagnosis and re-analysis, independent syntax-only check. No user code execution, automated patching, or correctness guarantee.
+**README prose word count:** 644 (excluding code blocks)
 
-## Start (Windows PowerShell)
+## Project Status
+
+DebugVerify is a local interactive prototype designed to help novice programmers critically evaluate AI-generated debugging suggestions rather than accept them automatically.
+
+The prototype provides two modes:
+
+- **Recorded Mode (implemented, pre-authored content):** Three repeatable cases demonstrate a useful suggestion, misleading advice and an uncertain diagnosis. Recorded tests are prepared in advance, not executed by the application.
+- **Live AI Mode (implemented and locally tested):** Users submit Python code, expected and observed behaviour, and optional feedback to an external language model for diagnosis and re-analysis.
+
+Both modes support a four-stage interaction: Problem Context, Diagnosis, Verification Evidence and Your Decision.
+
+The prototype does not execute user-submitted code, automatically modify files or guarantee that AI-generated suggestions are correct.
+
+## Technology Stack
+
+- **Frontend:** HTML and JavaScript (`index.html`).
+- **Backend:** Python standard-library `ThreadingHTTPServer` (`app.py`).
+- **Analysis:** Recorded JSON cases or an external OpenAI-compatible chat-completions API (`model.py`).
+- **Independent check:** Python `ast.parse()` for syntax checking only.
+- **Decision logging:** Local `decisions.jsonl`, excluded from Git.
+- **Test framework:** Python `unittest`.
+
+Live AI testing used a Volcengine Ark-hosted model on 14 November 2026. The model is an external service, not a locally trained model.
+
+## Running the Prototype
+
+Install Python 3 and Git, then open Windows PowerShell:
 
 ```powershell
-cd E:\IIS\DebugVerify
-.\start.ps1
+git clone https://github.com/Kaelin103/DebugVerify.git
+cd DebugVerify
+python app.py
 ```
 
-Alternatively: `.\.venv\Scripts\python.exe app.py`. Open http://127.0.0.1:8000 . Stop with Ctrl+C. Python standard library only.
+Open `http://127.0.0.1:8000` in a browser. Stop the server with `Ctrl+C`.
 
-## Optional live AI
+Recorded Mode requires no API key. No additional Python packages are required for the standard-library implementation.
 
-Supports an OpenAI-compatible **HTTPS chat-completions endpoint**. Provider/model compatibility varies. Set these environment variables in the *same PowerShell terminal* before starting:
+### Optional Live AI Configuration
+
+Set `DEBUGVERIFY_API_URL`, `DEBUGVERIFY_MODEL` and `DEBUGVERIFY_API_KEY` in the terminal before starting the server.
+
+The endpoint must support the expected chat-completions request and response format. Compatibility depends on the provider.
+
+Enter the API key without displaying it on screen:
 
 ```powershell
 $env:DEBUGVERIFY_API_URL = "https://YOUR_PROVIDER/v1/chat/completions"
 $env:DEBUGVERIFY_MODEL = "YOUR_MODEL_ID"
-$env:DEBUGVERIFY_API_KEY = Read-Host "API key"
-.\start.ps1
+$secureKey = Read-Host "API key" -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+try {
+    $env:DEBUGVERIFY_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+}
+finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+}
+python app.py
 ```
 
-Do not paste your API key into code, GitHub, screenshots, or reports. Avoid uploading sensitive code to external providers. The model response is unverified and may be inaccurate. The `Read-Host` command avoids echoing the key into the command history, but entered text may be visible on screen; use `Read-Host -AsSecureString` with careful conversion if required by your environment. This app is intended for local use only (`127.0.0.1`).
+The application requires a plaintext environment variable at runtime. Do not commit keys, store them in source files or include them in screenshots. Avoid sending sensitive code to external AI providers.
 
-## Interaction
+## Interaction and Limitations
 
-- **Recorded cases:** select one of three prepared cases. Evidence marked *Recorded test* was prepared in advance and is not executed by this app.
-- **Live AI:** click *Switch to Live AI*, edit Python code, expected and observed behaviour, then *Analyse my code*.
-- **Verification:** `ast.parse` checks Python syntax **without executing** the code. The AI's hypothesis and suggested tests are not independently verified.
-- **Accept/Reject:** records a decision but does not change files.
-- **Request re-analysis:** records the decision and, only in Live AI mode, sends user feedback plus previous diagnosis to the configured model. In recorded mode it records the request only.
-- **Logs:** decisions are appended to `decisions.jsonl`; no code is intentionally written to this log. Clear it before sharing if notes contain private information.
+Users inspect the suggested diagnosis and supporting information before selecting **Accept**, **Reject** or **Request re-analysis**.
 
-## Tests
+The independent AST check establishes only whether Python syntax can be parsed. It does not verify the program's behaviour or the AI's proposed fix.
+
+Accept and Reject record decisions without modifying source code. In Recorded Mode, Retry records the request without performing live inference. In Live AI Mode, feedback and the previous diagnosis can be submitted for another model analysis.
+
+Decision records are stored locally in `decisions.jsonl`.
+
+## Testing and Evidence
+
+Run the automated tests:
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-## Architecture
+Seven automated tests passed during local validation.
 
-Browser HTML/JS -> Python `ThreadingHTTPServer` -> recorded JSON cases / optional provider API. Independent Python `ast.parse` syntax check. Local decisions JSONL. No execution sandbox is implemented.
+Supporting material:
 
-## Development record and AI disclosure
+- [Automated test results](evidence/V2_AUTOMATED_TEST_RESULTS.txt)
+- [Manual test record](evidence/TEST_RECORD.md)
+- [Live AI screenshots](evidence/)
+- [Revised system architecture](docs/storyboards/final/DebugVerify_Architecture_Revised.png)
+- [Three interaction storyboards](docs/storyboards/final/STORYBOARDS.md)
 
-- **v1:** recorded cases, labelled evidence, Accept/Reject/Retry decision log; 3 automated tests and browser interactions verified by developer.
-- **v2:** optional provider-backed dynamic analysis, feedback-based re-analysis, editable input, independent syntax check, validation and additional tests. **Live AI was tested locally on 14 November 2026 using a Volcengine Ark-hosted model. Initial diagnosis and feedback-driven re-analysis were demonstrated. This does not establish the correctness of model-generated suggestions.**
-- **AI assistance:** ChatGPT generated initial project code, v2 changes, test scaffolding and documentation. The student should inspect, run, evaluate, correct and disclose assistance and verification in the submitted report. Do not claim empirical user-study results from demonstration cases.
+The Live AI tests demonstrate initial diagnosis and feedback-driven re-analysis. They do not establish debugging accuracy or improved learning outcomes.
 
-## Limitations
+## Development Record
 
-No sandboxed code execution; no validation that model's suggested fix works; provider may return malformed JSON or errors; prompts are sent to the configured external provider; recorded cases do not establish novice learning effectiveness.
+The project developed through two principal stages.
+
+**v1:** Three recorded debugging cases, evidence labels, a four-stage interface and user decision logging.
+
+**v2:** Editable Live AI inputs, external model integration, feedback-driven re-analysis, independent AST syntax checking, input validation and additional tests.
+
+Development decisions, testing and revisions are documented in [DEVELOPMENT_LOG.md](docs/DEVELOPMENT_LOG.md).
+
+The initial repository version is commit `079cf1c`. The revised architecture was committed as `83d73ef`. Later commits should be inspected through the repository history.
+
+## AI Assistance and Validation
+
+ChatGPT assisted with code generation, interface revisions, test scaffolding, documentation and design materials.
+
+Generated material was reviewed against the intended interaction and tested locally. Validation included automated unit tests, browser interaction checks, recorded-case demonstrations, and a Live AI diagnosis followed by feedback-driven re-analysis.
+
+The recorded cases are demonstrations, not empirical user-study results. AI-generated explanations remain unverified hypotheses unless supported by independent evidence.
+
+## Additional Files
+
+The `cases/` directory contains recorded scenarios. `tests/` contains automated tests. `evidence/` contains screenshots and validation records. `docs/` contains architecture and development materials.
+
+No additional ZIP or video is required to inspect the repository.
+
+## Remaining Limitations
+
+DebugVerify has no execution sandbox, automatic patch verification or measured user-learning outcomes. External model responses can be incorrect or unavailable. Further evaluation with novice programmers would be required to assess whether the interaction improves debugging decisions.
