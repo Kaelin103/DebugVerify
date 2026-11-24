@@ -1,6 +1,6 @@
 # DebugVerify v2 — IIS Assignment 2
 
-**README prose word count:** 644 (excluding code blocks)
+**README prose word count:** 673 (excluding code blocks)
 
 ## Project Status
 
@@ -68,9 +68,9 @@ The application requires a plaintext environment variable at runtime. Do not com
 
 Users inspect the suggested diagnosis and supporting information before selecting **Accept**, **Reject** or **Request re-analysis**.
 
-The independent AST check establishes only whether Python syntax can be parsed. It does not verify the program's behaviour or the AI's proposed fix.
+In Live AI Mode, the independent AST check establishes only whether Python syntax can be parsed. It does not execute user code or verify the program's behaviour or the AI's proposed fix.
 
-Accept and Reject record decisions without modifying source code. In Recorded Mode, Retry records the request without performing live inference. In Live AI Mode, feedback and the previous diagnosis can be submitted for another model analysis.
+Accept, Reject and Retry are recorded locally without modifying source code. In Recorded Mode, Retry only records the request. In Live AI Mode, the browser also sends feedback and the previous diagnosis to /api/analyse to request another model response. The decision log does not trigger re-analysis.
 
 Decision records are stored locally in `decisions.jsonl`.
 
@@ -104,7 +104,7 @@ The project developed through two principal stages.
 
 Development decisions, testing and revisions are documented in [DEVELOPMENT_LOG.md](docs/DEVELOPMENT_LOG.md).
 
-The initial repository version is commit `079cf1c`. The revised architecture was committed as `83d73ef`. Later commits should be inspected through the repository history.
+The initial prototype was committed as `079cf1c`. The README and project documentation were updated in `e711f10`. The final corrected architecture diagram was committed as `453a0f3`. Further changes are available in the repository's commit history.
 
 ## AI Assistance and Validation
 
